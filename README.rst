@@ -58,6 +58,12 @@ Accompanied repositories
 
 `Rippy webinterface <https://github.com/JohnDoee/rippy-webinterface>`_
 
+FAQ
+--------------------------------
+
+:Q: My tab crashed or elements on the website crashed, what should I do?
+:A: Close the tab, rippy should notice it shortly and try again.
+
 
 TODO
 --------------------------------
