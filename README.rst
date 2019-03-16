@@ -24,7 +24,12 @@ Currently the only distribution method officially provided is the docker-compose
 
     wget https://github.com/JohnDoee/rippy-docker/raw/master/docker-compose.yml
 
-You should edit docker-compose.yml and change the media path. The path is where all the data is downloaded to.
+You should edit docker-compose.yml. The following values should be changed
+
+* /tmp/media should be changed to where you want rippy to download data, it is in the file twice.
+* BASIC_AUTH_PASSWORD should be changed to a unique password
+* SECRET_KEY should be changed to something unique
+* Optional: Change RIPPY_CONCURRENCY to how many scrape and download threads you want to have.
 
 .. code-block:: bash
 
