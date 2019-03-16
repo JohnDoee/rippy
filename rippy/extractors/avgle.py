@@ -37,6 +37,7 @@ class AvgleExtractor(BaseExtractor):
                 break
             await asyncio.sleep(1)
 
+        found_recaptcha_count = 0
         found_recaptcha = await self.page.querySelector('iframe[src*="google.com/recaptcha"]')
         if found_recaptcha:
             logger.info('We need a captcha response')
@@ -44,8 +45,20 @@ class AvgleExtractor(BaseExtractor):
             for _ in range(3200):
                 if state['count'] == 2:
                     break
+
                 if self.cancelled:
                     return
+
+                found_recaptcha = await self.page.querySelector('iframe[src*="google.com/recaptcha"]')
+                if found_recaptcha:
+                    found_recaptcha_count = 0
+                else:
+                    found_recaptcha_count += 1
+
+                if found_recaptcha_count > 7:
+                    raise JobFailedException('Recaptcha gone for too long, failing job')
+
+                logger.debug('Is captcha still visible: %r' % (found_recaptcha, ))
                 await asyncio.sleep(1)
             else:
                 raise JobFailedException('Failed while waiting for captcha')
