@@ -71,6 +71,11 @@ TODO
 * [ ] Add (semi-)generic view player extractor
 * [ ] Return (potentially proxied) URL to video instead of downloading
 
+Supported sites
+--------------------------------
+
+* Avgle
+
 Docker images
 --------------------------------
 
