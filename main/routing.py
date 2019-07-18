@@ -4,8 +4,6 @@ from django.urls import path, include
 import rippy.routing
 
 
-application = ProtocolTypeRouter({
-    'websocket': URLRouter([
-        path('api/', URLRouter(rippy.routing.urlpatterns)),
-    ]),
-})
+application = ProtocolTypeRouter(
+    {"websocket": URLRouter([path("api/", URLRouter(rippy.routing.urlpatterns))])}
+)

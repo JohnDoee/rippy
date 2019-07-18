@@ -5,13 +5,8 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('rippy', '0002_job_path'),
-    ]
+    dependencies = [("rippy", "0002_job_path")]
 
     operations = [
-        migrations.AlterModelOptions(
-            name='job',
-            options={'ordering': ['-id']},
-        ),
+        migrations.AlterModelOptions(name="job", options={"ordering": ["-id"]})
     ]

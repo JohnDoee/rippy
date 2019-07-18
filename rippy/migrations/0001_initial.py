@@ -7,19 +7,43 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Job',
+            name="Job",
             fields=[
-                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('url', models.URLField(max_length=1000)),
-                ('status', models.CharField(choices=[('pending', 'Pending'), ('progressing', 'Progressing'), ('success', 'Success'), ('failed', 'Failed'), ('waiting', 'Waiting for user-input'), ('cancelled', 'Cancelled')], default='pending', max_length=20)),
-                ('status_message', models.CharField(blank=True, default='', max_length=2000)),
-                ('last_update', models.DateTimeField(auto_now=True)),
-                ('created', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("url", models.URLField(max_length=1000)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "Pending"),
+                            ("progressing", "Progressing"),
+                            ("success", "Success"),
+                            ("failed", "Failed"),
+                            ("waiting", "Waiting for user-input"),
+                            ("cancelled", "Cancelled"),
+                        ],
+                        default="pending",
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "status_message",
+                    models.CharField(blank=True, default="", max_length=2000),
+                ),
+                ("last_update", models.DateTimeField(auto_now=True)),
+                ("created", models.DateTimeField(auto_now_add=True)),
             ],
-        ),
+        )
     ]

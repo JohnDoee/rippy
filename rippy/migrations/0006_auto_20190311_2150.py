@@ -5,14 +5,10 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('rippy', '0005_auto_20190311_2148'),
-    ]
+    dependencies = [("rippy", "0005_auto_20190311_2148")]
 
     operations = [
         migrations.AlterField(
-            model_name='job',
-            name='url',
-            field=models.URLField(max_length=5000),
-        ),
+            model_name="job", name="url", field=models.URLField(max_length=5000)
+        )
     ]

@@ -5,19 +5,29 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
-    dependencies = [
-        ('rippy', '0004_auto_20190310_1858'),
-    ]
+    dependencies = [("rippy", "0004_auto_20190310_1858")]
 
     operations = [
         migrations.AddField(
-            model_name='job',
-            name='name',
+            model_name="job",
+            name="name",
             field=models.CharField(max_length=500, null=True),
         ),
         migrations.AlterField(
-            model_name='job',
-            name='status',
-            field=models.CharField(choices=[('pending', 'Pending'), ('parsing', 'Parsing'), ('downloading', 'Downloading'), ('success', 'Success'), ('failed', 'Failed'), ('waiting', 'Waiting for user-input'), ('cancelled', 'Cancelled')], default='pending', max_length=20),
+            model_name="job",
+            name="status",
+            field=models.CharField(
+                choices=[
+                    ("pending", "Pending"),
+                    ("parsing", "Parsing"),
+                    ("downloading", "Downloading"),
+                    ("success", "Success"),
+                    ("failed", "Failed"),
+                    ("waiting", "Waiting for user-input"),
+                    ("cancelled", "Cancelled"),
+                ],
+                default="pending",
+                max_length=20,
+            ),
         ),
     ]

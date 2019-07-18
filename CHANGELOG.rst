@@ -9,6 +9,7 @@ Added
 ````````````````````````````````
 
 * FAQ section
+* Using black for formatting
 
 Changed
 ````````````````````````````````
