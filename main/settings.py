@@ -16,6 +16,7 @@ import environ
 
 env = environ.Env(
     DEBUG=(bool, False),
+    RIPPY_DOWNLOAD_CONCURRENCY=(int, 2)
 )
 environ.Env.read_env(os.environ.get('ENV_PATH'))
 
@@ -158,3 +159,5 @@ CELERY_BROKER_URL = env('CELERY_BROKER_URL')
 
 CHROME_REMOTE_URL = env('CHROME_REMOTE_URL')
 PARSE_BROWSER_URL = env('PARSE_BROWSER_URL')
+
+DOWNLOAD_CONCURRENCY = env('RIPPY_DOWNLOAD_CONCURRENCY')

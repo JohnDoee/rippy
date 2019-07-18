@@ -1,11 +1,14 @@
 import asyncio
+import concurrent.futures
 import logging
 import os
 import re
 import socket
 import subprocess
+import tempfile
 import time
 
+import m3u8
 import requests
 
 from celery import shared_task
@@ -17,9 +20,13 @@ from .models import Job
 
 logger = logging.getLogger(__name__)
 
+USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36'
 
 class JobNotPendingException(Exception):
     """Prevent double-handling of job exception"""
+
+class FailedToDownloadSegmentException(Exception):
+    """A piece could not be downloaded"""
 
 
 def get_chrome_url():
@@ -48,7 +55,7 @@ async def execute_job(extractor_cls, chrome_url, job):
     })
 
     page = await browser.newPage()
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/72.0.3626.121 Safari/537.36')
+    await page.setUserAgent(USER_AGENT)
     await page.setViewport({'width': 1024, 'height': 768})
     extractor = extractor_cls(job, page)
 
@@ -74,6 +81,22 @@ def duration_to_number(duration):
     total *= 60
     total += int(seconds)
     return total
+
+
+def download_file_segment(url, target, headers):
+    for i in range(3):
+        logger.debug('Starting to download %s attempt %s' % (url, i, ))
+        try:
+            with requests.get(url, stream=True, headers=headers) as r:
+                with open(target, 'wb') as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+        except requests.exceptions.RequestException:
+            logger.warning('Failed to download url %s' % (url, ))
+            continue
+        return
+    raise FailedToDownloadSegmentException()
 
 
 @shared_task
@@ -128,53 +151,134 @@ def handle_job(job_id):
     if not os.path.isdir(target_path):
         os.makedirs(target_path)
 
+    logger.debug('Fetching m3u8')
+    headers = {'User-Agent': USER_AGENT}
+    headers.update(result['headers'])
+    r = requests.get(result['url'], headers=headers)
+    playlist = m3u8.loads(r.text)
+
     target_filename = '%s - %s.mp4' % (sanitize_title(result['title']), result['id'], )
     target_full_path = os.path.join(target_path, target_filename)
 
-    cmd = ['ffmpeg']
-    for k, v in result['headers'].items():
-        cmd += ['-headers', '%s: %s' % (k, v)]
-
-    cmd += [
-        '-y',
-        '-i', result['url'],
-        '-c', 'copy',
-        '-f', 'mp4',
-        target_full_path,
-    ]
-    logger.debug('Downloading result with ffmpeg')
-
     job.name = target_filename
     job.status = job.DOWNLOADING
-    job.status_message = 'Downloading using FFMpeg...'
+    job.status_message = f"Downloading {len(playlist.segments)} segments"
     job.save()
 
-    p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    logger.debug('Queuing up %s segments' % (len(playlist.segments), ))
+    with tempfile.TemporaryDirectory() as download_dir:
+        segments = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=settings.DOWNLOAD_CONCURRENCY) as executor:
+            futures = []
+            for i, segment in enumerate(playlist.segments):
+                target = os.path.join(download_dir, f"{i:05}.ts")
+                segments.append(target)
+                futures.append((executor.submit(download_file_segment, segment.uri, target, headers)))
 
-    duration, progress = None, None
+            for i, future in enumerate(futures, 1):
+                try:
+                    future.result()
+                except Exception:
+                    logger.exception('Failed to download')
+                    job.status = job.FAILED
+                    job.status_message = f"Failed while downloading segment {i}"
+                    job.save()
+                    return
+                else:
+                    job.send_progress_update(total=len(playlist.segments), progress=i)
 
-    for line in p.stderr:
-        line = line.decode('utf-8')
-        if not duration:
-            duration_result = re.findall(r'Duration: (\d{2}:\d{2}:\d{2}\.\d{2})', line)
-            if duration_result:
-                duration = duration_to_number(duration_result[0])
+        job.status_message = f"Finished downloading {len(playlist.segments)} segments, merging with ffmpeg"
+        job.save()
 
-        progress_result = re.findall(r'time=(\d{2}:\d{2}:\d{2}\.\d{2})', line)
-        if progress_result:
-            progress = duration_to_number(progress_result[0])
 
-        if duration is not None and progress is not None:
-            job.send_progress_update(duration, progress)
+        cmd = ['ffmpeg']
+        cmd += [
+            '-y',
+            '-i', f"concat:{'|'.join(segments)}",
+            '-c', 'copy',
+            '-f', 'mp4',
+            target_full_path,
+        ]
 
-    returncode = p.wait()
+        logger.debug('Merging result with ffmpeg')
 
-    if returncode:
-        job.status_message = 'Failed FFMpeg with returncode %s' % (returncode, )
-        job.status = job.FAILED
-    else:
-        job.path = os.path.join(media_path, target_filename)
-        job.status_message = 'Finished'
-        job.status = job.SUCCESS
-    job.save()
+        p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+
+        duration, progress = None, None
+
+        for line in p.stderr:
+            line = line.decode('utf-8')
+            if not duration:
+                duration_result = re.findall(r'Duration: (\d{2}:\d{2}:\d{2}\.\d{2})', line)
+                if duration_result:
+                    duration = duration_to_number(duration_result[0])
+
+            progress_result = re.findall(r'time=(\d{2}:\d{2}:\d{2}\.\d{2})', line)
+            if progress_result:
+                progress = duration_to_number(progress_result[0])
+
+            if duration is not None and progress is not None:
+                job.send_progress_update(duration, progress)
+
+        returncode = p.wait()
+
+        if returncode:
+            job.status_message = 'Failed FFMpeg with returncode %s' % (returncode, )
+            job.status = job.FAILED
+        else:
+            job.path = os.path.join(media_path, target_filename)
+            job.status_message = 'Finished'
+            job.status = job.SUCCESS
+        job.save()
+
+
+
+
+
+    # cmd = ['ffmpeg']
+    # for k, v in result['headers'].items():
+    #     cmd += ['-headers', '%s: %s' % (k, v)]
+
+    # cmd += [
+    #     '-y',
+    #     '-i', result['url'],
+    #     '-c', 'copy',
+    #     '-f', 'mp4',
+    #     target_full_path,
+    # ]
+    # logger.debug('Downloading result with ffmpeg')
+
+    # job.name = target_filename
+    # job.status = job.DOWNLOADING
+    # job.status_message = 'Downloading using FFMpeg...'
+    # job.save()
+
+    # p = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+
+    # duration, progress = None, None
+
+    # for line in p.stderr:
+    #     line = line.decode('utf-8')
+    #     if not duration:
+    #         duration_result = re.findall(r'Duration: (\d{2}:\d{2}:\d{2}\.\d{2})', line)
+    #         if duration_result:
+    #             duration = duration_to_number(duration_result[0])
+
+    #     progress_result = re.findall(r'time=(\d{2}:\d{2}:\d{2}\.\d{2})', line)
+    #     if progress_result:
+    #         progress = duration_to_number(progress_result[0])
+
+    #     if duration is not None and progress is not None:
+    #         job.send_progress_update(duration, progress)
+
+    # returncode = p.wait()
+
+    # if returncode:
+    #     job.status_message = 'Failed FFMpeg with returncode %s' % (returncode, )
+    #     job.status = job.FAILED
+    # else:
+    #     job.path = os.path.join(media_path, target_filename)
+    #     job.status_message = 'Finished'
+    #     job.status = job.SUCCESS
+    # job.save()
 

@@ -20,6 +20,10 @@ class BaseExtractor(metaclass=ABCMeta):
     def matcher(self):
         """Regexp to match URL"""
 
+    @abstractproperty
+    def priority(self):
+        """We will use the one with highest priority"""
+
     @abstractmethod
     async def extract(self, job):
         """Extract data from job"""

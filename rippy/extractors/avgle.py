@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 class AvgleExtractor(BaseExtractor):
     name = 'Avgle'
     matcher = re.compile(r'^https?://(www\.)?avgle.com/video/([^/]{6,})/.*')
+    priority = 10
 
     async def extract(self):
         state = {'count': 0}

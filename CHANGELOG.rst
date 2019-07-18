@@ -2,7 +2,7 @@
 Changelog
 ================================
 
-Version Unreleased
+Version 0.1.2 (18-07-2019)
 ===========================================================
 
 Added
@@ -13,6 +13,8 @@ Added
 Changed
 ````````````````````````````````
 
+* Using custom parallel downloader instead of FFMpeg built-in downloader.
+  This allows for adjustable parallelism.
 
 
 Version 0.1.1 (16-03-2019)
