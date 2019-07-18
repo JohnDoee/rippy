@@ -1,10 +1,10 @@
-Django==2.1
+Django==2.2
 celery[redis]==4.2.1
-channels==2.1.7
-channels-redis==2.3.3
+channels==2.2.0
+channels-redis==2.4.0
 django-environ==0.4.5
 djangorestframework==3.9.2
 pyppeteer==0.0.25
-requests==2.21.0
+requests==2.22.0
 websockets==6.0
 m3u8==0.3.10
