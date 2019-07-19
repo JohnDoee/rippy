@@ -41,6 +41,14 @@ class JobViewSet(viewsets.ModelViewSet):
         job.save()
         return Response({"status": "job hidden"})
 
+    @action(detail=True, methods=["post"])
+    def retry(self, request, pk=None):
+        job = self.get_object()
+        job.status = job.PENDING
+        job.scheduled = False
+        job.save()
+        return Response({"status": "Retrying job"})
+
 
 class ConfigView(views.APIView):
     def get(self, request):

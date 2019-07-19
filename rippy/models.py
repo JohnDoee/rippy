@@ -38,6 +38,7 @@ class Job(models.Model):
     name = models.CharField(max_length=500, null=True)
 
     hidden = models.BooleanField(default=False)
+    scheduled = models.BooleanField(default=False)
 
     last_updated = models.DateTimeField(auto_now=True)
     created = models.DateTimeField(auto_now_add=True)
@@ -70,5 +71,7 @@ def event_job_update(sender, instance, created, **kwargs):
 
     threading.Thread(target=job_update).start()
 
-    if created:
+    if not instance.scheduled:
+        instance.scheduled = True
+        instance.save()
         handle_job.delay(instance.pk)
